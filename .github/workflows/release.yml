@@ -22,6 +22,16 @@ jobs:
         export SOURCE_DIR=$GITHUB_WORKSPACE
         chmod +x $GITHUB_WORKSPACE/package.sh
         $GITHUB_WORKSPACE/package.sh
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body: |
+          # This can be filled.
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        files: |
+          $GITHUB_WORKSPACE/aznfs_1.0.0_amd64.deb
+          $GITHUB_WORKSPACE/scripts/installerScript.sh
 #     - name: Create Release
 #       id: create_release
 #       uses: actions/create_release@v2
