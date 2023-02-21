@@ -1,0 +1,14 @@
+[Unit]
+Description= aznfs watchdog for NFSv3 mounts
+  
+Before=
+After=
+
+[Service]
+User=root
+
+ExecStart=/usr/sbin/aznfswatchdog
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
