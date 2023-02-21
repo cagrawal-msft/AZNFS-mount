@@ -24,24 +24,24 @@ jobs:
         export SOURCE_DIR={{ GITHUB_WORKSPACE }}
         ./package.sh
       shell: bash
-    - name: Create Release
-      id: create_release
-      uses: actions/create_release@v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        body: |
-          # This could be filled depends on the release.ref
-        draft: false
-        prerelease: false
-    - name: Upload Release Asset
-      id: upload-release-asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.crete_release.outputs.upload_url }}
-        asset_path: ./aznfs.deb
-        asset_name: aznfs.deb
+#     - name: Create Release
+#       id: create_release
+#       uses: actions/create_release@v2
+#       env:
+#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#       with:
+#         tag_name: ${{ github.ref }}
+#         release_name: Release ${{ github.ref }}
+#         body: |
+#           # This could be filled depends on the release.ref
+#         draft: false
+#         prerelease: false
+#     - name: Upload Release Asset
+#       id: upload-release-asset
+#       uses: actions/upload-release-asset@v1
+#       env:
+#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#       with:
+#         upload_url: ${{ steps.crete_release.outputs.upload_url }}
+#         asset_path: ./aznfs.deb
+#         asset_name: aznfs.deb
