@@ -20,8 +20,11 @@ jobs:
         chmod +x ./packaging/aznfs/DEBIAN/*
         echo "Just Before Running package.sh"
         export BUILD_NUMBER="1.0.0"
-        export STG_DIR={{ GITHUB_WORKSPACE }}
-        export SOURCE_DIR={{ GITHUB_WORKSPACE }}
+        export STG_DIR=$GITHUB_WORKSPACE
+        export SOURCE_DIR=$GITHUB_WORKSPACE
+        pwd
+        echo "$STG_DIR"
+        echo "$SOURCE_DIR"
         ./package.sh
       shell: bash
 #     - name: Create Release
