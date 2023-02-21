@@ -6,6 +6,13 @@ name: Release to github for Mount Helper
 
 on:
   workflow_dispatch:
+    inputs:
+      versionName:
+        description: 'Name of Version'
+        required: true
+      versionCode:
+        description: 'Version Number'
+        required: true
 
 jobs:
   package_mount_helper:
@@ -14,10 +21,12 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
+    - name: Create release branch
+      run: git checkout -b release/v${{ github.event.inputs.versionName }}
     - name: Run Package.sh
       shell: bash
       run: |
-        export BUILD_NUMBER="1.0.0"
+        export BUILD_NUMBER=${{ github.event.inputs.versionName }}
         export STG_DIR=$GITHUB_WORKSPACE
         export SOURCE_DIR=$GITHUB_WORKSPACE
         chmod +x $GITHUB_WORKSPACE/package.sh
@@ -27,8 +36,8 @@ jobs:
       with:
         body: |
           # This can be filled.
-        tag_name: ${{ github.ref }}
-        name: Release ${{ github.ref }}
+        tag_name: ${{ github.event.inputs.versionName }}
+        name: Release ${{ github.event.inputs.versionName }}
         files: |
           ${{ github.workspace}}/aznfs_1.0.0_amd64.deb
           ${{ github.workspace}}/scripts/installerScript.sh
