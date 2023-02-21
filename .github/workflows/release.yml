@@ -30,8 +30,8 @@ jobs:
         tag_name: ${{ github.ref }}
         release_name: Release ${{ github.ref }}
         files: |
-          $GITHUB_WORKSPACE/aznfs_1.0.0_amd64.deb
-          $GITHUB_WORKSPACE/scripts/installerScript.sh
+          ${{ github.workspace}}/aznfs_1.0.0_amd64.deb
+          ${{ github.workspace}}/scripts/installerScript.sh
 #     - name: Create Release
 #       id: create_release
 #       uses: actions/create_release@v2
