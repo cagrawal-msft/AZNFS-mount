@@ -23,9 +23,11 @@ sed -i -e "s/Version: x.y.z/Version: ${RELEASE_NUMBER}/g" ${STG_DIR}/${pkg_dir}/
 mkdir -p ${STG_DIR}/${pkg_dir}/sbin
 cp -avf ${SOURCE_DIR}/src/aznfswatchdog ${STG_DIR}/${pkg_dir}/sbin/
 
+# Compile mount.aznfs.c and put the executable into ${STG_DIR}/${pkg_dir}/sbin.
+gcc -static ${SOURCE_DIR}/src/mount.aznfs.c -o ${STG_DIR}/${pkg_dir}/sbin/mount.aznfs
+
 mkdir -p ${STG_DIR}/${pkg_dir}${opt_dir}
 cp -avf ${SOURCE_DIR}/lib/common.sh ${STG_DIR}/${pkg_dir}${opt_dir}/
-cp -avf ${SOURCE_DIR}/src/mount.aznfs.c ${STG_DIR}/${pkg_dir}${opt_dir}/
 cp -avf ${SOURCE_DIR}/src/mountscript.sh ${STG_DIR}/${pkg_dir}${opt_dir}/
 
 mkdir -p ${STG_DIR}/${pkg_dir}${system_dir}
@@ -34,4 +36,4 @@ cp -avf ${SOURCE_DIR}/src/aznfswatchdog.service ${STG_DIR}/${pkg_dir}${system_di
 cd $STG_DIR
 
 # Create the package.
-dpkg-deb --build $pkg_dir
+dpkg-deb --root-owner-group --build $pkg_dir
