@@ -3,13 +3,6 @@
 # Exit on error.
 set -e
 
-echo "PreInst Called ******"
-echo "$0"
-ech0 "$1"
-echo "$2"
-
-echo "End Print"
-
 init="$(ps -q 1 -o comm=)"
 if [ "$init" != "systemd" ]; then
 	echo "Cannot install this package on a non-systemd system!"
