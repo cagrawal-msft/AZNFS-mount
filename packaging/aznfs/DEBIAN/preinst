@@ -3,6 +3,11 @@
 # Exit on error.
 set -e
 
+echo "*********"
+if [ "$1" == 'install' ]; then
+	echo "value is install"
+fi
+
 init="$(ps -q 1 -o comm=)"
 if [ "$init" != "systemd" ]; then
 	echo "Cannot install this package on a non-systemd system!"
