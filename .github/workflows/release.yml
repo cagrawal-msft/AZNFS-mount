@@ -1,40 +1,38 @@
-#!/bin/bash
+#
+# Release workflow for Mount Helper Script.
+#
 
-# Exit on error.
-set -e
+name: Release to github for Mount Helper
 
-#STG_DIR, RELEASE_NUMBER and SOURCE_DIR will be taken as env var.
-pkg_name="aznfs"
-pkg_dir="${pkg_name}_${RELEASE_NUMBER}_amd64"
-opt_dir="/opt/microsoft/${pkg_name}"
-system_dir="/lib/systemd/system"
+on:
+  workflow_dispatch:
+    inputs:
+      versionName:
+        description: 'Version Name'
+        required: true
 
-# Create the directory to hold the package control and data files.
-mkdir -p ${STG_DIR}/${pkg_dir}
-
-# Copy the debian control file(s) and maintainer scripts.
-cp -avf ${SOURCE_DIR}/packaging/${pkg_name}/* ${STG_DIR}/${pkg_dir}/
-chmod +x ${STG_DIR}/${pkg_dir}/DEBIAN/*
-
-# Insert current build number.
-sed -i -e "s/Version: x.y.z/Version: ${RELEASE_NUMBER}/g" ${STG_DIR}/${pkg_dir}/DEBIAN/control
-
-# Copy other static package file(s).
-mkdir -p ${STG_DIR}/${pkg_dir}/usr/sbin
-cp -avf ${SOURCE_DIR}/src/aznfswatchdog ${STG_DIR}/${pkg_dir}/usr/sbin/
-
-# Compile mount.aznfs.c and put the executable into ${STG_DIR}/${pkg_dir}/sbin.
-mkdir -p ${STG_DIR}/${pkg_dir}/sbin
-gcc -static ${SOURCE_DIR}/src/mount.aznfs.c -o ${STG_DIR}/${pkg_dir}/sbin/mount.aznfs
-
-mkdir -p ${STG_DIR}/${pkg_dir}${opt_dir}
-cp -avf ${SOURCE_DIR}/lib/common.sh ${STG_DIR}/${pkg_dir}${opt_dir}/
-cp -avf ${SOURCE_DIR}/src/mountscript.sh ${STG_DIR}/${pkg_dir}${opt_dir}/
-
-mkdir -p ${STG_DIR}/${pkg_dir}${system_dir}
-cp -avf ${SOURCE_DIR}/src/aznfswatchdog.service ${STG_DIR}/${pkg_dir}${system_dir}
-
-cd $STG_DIR
-
-# Create the package.
-dpkg-deb --root-owner-group --build $pkg_dir
+jobs:
+  package_mount_helper:
+    name: Package and Release Mount Helper
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    - name: Run Package.sh
+      shell: bash
+      run: |
+        export RELEASE_NUMBER=${{ github.event.inputs.versionName }}
+        export STG_DIR=$GITHUB_WORKSPACE
+        export SOURCE_DIR=$GITHUB_WORKSPACE
+        chmod +x $GITHUB_WORKSPACE/package.sh
+        $GITHUB_WORKSPACE/package.sh
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: Release ${{ github.event.inputs.versionName }}
+        tag_name: ${{ github.event.inputs.versionName }}
+        files: |
+          ${{ github.workspace}}/aznfs_${{ github.event.inputs.versionName }}_amd64.deb
+          ${{ github.workspace}}/scripts/aznfs_install.sh
+        body: |
+          New Release ${{ github.event.inputs.versionName }}
