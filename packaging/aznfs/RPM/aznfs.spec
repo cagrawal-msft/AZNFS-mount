@@ -11,8 +11,7 @@ Requires: conntrack, iptables, bind-utils, iproute, util-linux, nfs-utils, netca
 Mount helper program for correctly handling endpoint IP address changes for Azure Blob NFS mounts
 
 %prep
-ls ${STG_DIR}/rpm/root/rpmbuild/*
-mkdir -p ${STG_DIR}/rpm/root/rpmbuild/SOURCES
+mkdir -p ${STG_DIR}/rpm/root/rpmbuild/SOURCES/
 cp -avf ${STG_DIR}/aznfs-${RELEASE_NUMBER}-1.x86_64.tar.gz ${STG_DIR}/rpm/root/rpmbuild/SOURCES/
 tar -xzvf ${STG_DIR}/rpm/root/rpmbuild/SOURCES/aznfs-${RELEASE_NUMBER}-1.x86_64.tar.gz -C ${STG_DIR}/rpm/
 
