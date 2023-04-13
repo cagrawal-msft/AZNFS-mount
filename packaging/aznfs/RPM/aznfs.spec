@@ -12,8 +12,9 @@ Mount helper program for correctly handling endpoint IP address changes for Azur
 
 %prep
 ls ${STG_DIR}/rpm/root/rpmbuild/*
-echo "******************************"
-cp ${STG_DIR}/aznfs_${RELEASE_NUMBER}_amd64.tar.gz ${STG_DIR}/rpm/root/rpmbuild/SOURCES/
+rpmbuild --version
+mkdir -p ${STG_DIR}/rpm/root/rpmbuild/SOURCES
+cp -avf ${STG_DIR}/aznfs_${RELEASE_NUMBER}_amd64.tar.gz ${STG_DIR}/rpm/root/rpmbuild/SOURCES/
 tar -xzvf ${STG_DIR}/rpm/root/rpmbuild/SOURCES/aznfs_${RELEASE_NUMBER}_amd64.tar.gz -C ${STG_DIR}/rpm/
 
 %files
