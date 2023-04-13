@@ -52,14 +52,14 @@ dpkg-deb --root-owner-group --build $STG_DIR/deb/$pkg_dir
 
 #Generate .rpm package.
 
-# Create the directory to hold the package control and data files for RPM package.
+# Create the directory to hold the package spec and data files for RPM package.
 mkdir -p ${STG_DIR}/rpm/tmp${rpm_buildroot_dir}/${rpm_pkg_dir}
 
 # Copy other static package file(s).
 mkdir -p ${STG_DIR}/rpm/tmp${rpm_buildroot_dir}/${rpm_pkg_dir}/usr/sbin
 cp -avf ${SOURCE_DIR}/src/aznfswatchdog ${STG_DIR}/rpm/tmp${rpm_buildroot_dir}/${rpm_pkg_dir}/usr/sbin/
 
-# Compile mount.aznfs.c and put the executable into ${STG_DIR}/rpm/${rpm_pkg_dir}/tmp/sbin.
+# Compile mount.aznfs.c and put the executable into ${STG_DIR}/rpm/tmp${rpm_buildroot_dir}/${rpm_pkg_dir}/sbin.
 mkdir -p ${STG_DIR}/rpm/tmp${rpm_buildroot_dir}/${rpm_pkg_dir}/sbin
 gcc -static ${SOURCE_DIR}/src/mount.aznfs.c -o ${STG_DIR}/rpm/tmp${rpm_buildroot_dir}/${rpm_pkg_dir}/sbin/mount.aznfs
 
@@ -75,10 +75,6 @@ tar -cvzf ${rpm_pkg_dir}.tar.gz -C ${STG_DIR}/rpm/tmp root
 
 # Insert current release number.
 sed -i -e "s/Version: x.y.z/Version: ${RELEASE_NUMBER}/g" ${SOURCE_DIR}/packaging/${pkg_name}/RPM/aznfs.spec
-
-echo "********************************"
-rpmbuild --version
-echo "********************************"
 
 # Create the rpm package.
 rpmbuild --define "_topdir ${STG_DIR}/rpm${rpmbuild_dir}" -v -bb ${SOURCE_DIR}/packaging/${pkg_name}/RPM/aznfs.spec
