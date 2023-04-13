@@ -1,266 +1,216 @@
 #!/bin/bash
-#
-# Copyright (c) Microsoft Corporation.
-#
+# --------------------------------------------------------------------------------------------
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License. See License.txt in the project root for license information.
+# --------------------------------------------------------------------------------------------
 
-proxy=
-configfile=
-altdownloadfile=
-format_success=
-format_failure=
+RELEASE_NUMBER=x.y.z
+apt_update_done=false
+yum="yum"
 apt=0
 zypper=0
-rpm_distro=
-deb_distro=
-localinstall=0
-debian=0
-yum="yum"
+distro_id=
+install_cmd=
 
-function verify_downloadfile {
-    if [ -z "${altdownloadfile##*.deb}" ]; then
-        if [ $apt -eq 0 ]; then
-        exit_failure 127 "$0: error: altdownload file should not have .deb suffix"
-    fi
-    elif [ -z "${altdownloadfile##*.rpm}" ]; then
-        if [ $apt -eq 1 ]; then
-        exit_failure 128 "$0: error: altdownload file should not have .rpm suffix"
-    fi
-    else
-    if [ $apt -eq 0 ]; then
-        altdownloadfile+=".rpm"
-    else
-        altdownloadfile+=".deb"
-    fi
-    fi
+RED="\e[2;31m"
+GREEN="\e[2;32m"
+YELLOW="\e[2;33m"
+NORMAL="\e[0m"
+
+#
+# Core logging function.
+#
+_log()
+{
+    color=$1
+    msg=$2
+
+    echo -e "${color}${msg}${NORMAL}"
 }
-         
-# For Ubuntu, system updates could sometimes occupy apt. We loop and wait until it's no longer busy
-verify_apt_not_busy {
-    for i in {1..30}
-    do
-        sudo lsof /var/lib/dpkg/lock-frontend
-        if [ $? -ne 0 ]; then
-            return
-        fi
-        echo "Another apt/dpkg process is updating system. Retrying up to 5 minutes...$(expr $i \* 30) seconds"
-        sleep 10
-    done
-    echo "file /var/lib/dpkg/lock-frontend is still busy after 5 minutes. Please make sure no other apt/dpkg updates is still running, and retry again."
-    exit 1
+
+#
+# Plain echo.
+#
+pecho()
+{
+    color=$NORMAL
+    _log $color "${*}"
 }
-           
-use_dnf_or_yum {
+
+#
+# Success echo.
+#
+secho()
+{
+    color=$GREEN
+    _log $color "${*}"
+}
+
+#
+# Warning echo.
+#
+wecho()
+{
+    color=$YELLOW
+    _log $color "${*}"
+}
+
+#
+# Error echo.
+#
+eecho()
+{
+    color=$RED
+    _log $color "${*}"
+}
+
+use_dnf_or_yum() 
+{
     yum="yum"
     if command -v dnf &> /dev/null; then
         yum="dnf"
-        localinstall=0
-        echo "Using 'dnf' instead of 'yum'"
+        pecho "Using 'dnf' instead of 'yum'"
     fi
 }
 
-check_physical_memory {
-    size=$(grep MemTotal /proc/meminfo | tr -s ' ' | cut -d ' ' -f2)
-    unit=$(grep MemTotal /proc/meminfo | tr -s ' ' | cut -d ' ' -f3)
-    if [ $unit == "kB" ]; then
-        echo "Total physical memory: ${size} ${unit}"
+#
+# This returns distro id in a canonical form, that rest of the code understands.
+# We only use lowercase single word names for distro names:
+# ubuntu, centos, redhat, sles.
+#
+canonicalize_distro_id()
+{
+    local distro_lower=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+
+    # Use sles for SUSE/SLES.
+    if [ "$distro_lower" == "suse" ]; then
+        distro_lower="sles"
+    fi
+
+    echo "$distro_lower"
+}
+
+#
+# Install the package appropriately as per the current distro.
+# If distro_id is already detected it uses that else it tries to guess
+# the distro.
+#
+ensure_pkg()
+{
+    local pkg="$1"
+    local distro="$distro_id"
+
+    if [ "$distro" == "ubuntu" ]; then
+        if ! $apt_update_done; then
+            apt -y update
+            if [ $? -ne 0 ]; then
+                echo
+                eecho "\"apt update\" failed"
+                eecho "Please make sure \"apt update\" runs successfully and then try again!"
+                echo
+                exit 1
+            fi
+            # Need to run apt update only once.
+            apt_update_done=true
+        fi
+        apt=1
+        apt install -y $pkg
+    elif [ "$distro" == "centos" -o "$distro" == "rocky" -o "$distro" == "rhel" ]; then
+        # lsb_release package is called redhat-lsb-core in redhat/centos.
+        if [ "$pkg" == "lsb-release" ]; then
+            pkg="redhat-lsb-core"
+        fi
+        use_dnf_or_yum
+        $yum install -y $pkg
+    elif [ "$distro" == "sles" ]; then
+        zypper=1
+        zypper install -y $pkg
     fi
 }
 
-# Check physical memory available
-check_physical_memory
+verify_super_user()
+{
+    if [ $(id -u) -ne 0 ]; then
+        eecho "Run this script as root!"
+        exit 1
+    fi
+}
 
-# Detect OS and Version
+if [ "$RELEASE_NUMBER" == "x.y.z" ]; then
+    eecho "This script is directly downloaded from the github source code."
+    eecho "Please download the aznfs_install.sh from 'https://github.com/Azure/AZNFS-mount/releases/latest/download/aznfs_install.sh'"
+    eecho "If the problem persists, contact Microsoft support."
+    exit 1
+fi
+
+#
+# Only super user can install aznfs.
+#
+verify_super_user
+
+#
+# Detect OS and Version.
+#
 __m=$(uname -m 2>/dev/null) || __m=unknown
-__s=$(uname -s 2>/dev/null)  || __s=unknown
+__s=$(uname -s 2>/dev/null) || __s=unknown
 
-distro=
-distro_version=
+#
+# Try to detect the distro in a resilient manner and set distro_id
+# global variables.
+#
 case "${__m}:${__s}" in
     "x86_64:Linux")
         if [ -f /etc/centos-release ]; then
-           echo "Retrieving distro info from /etc/centos-release..."
-               distro=$(awk -F" " '{ print $1 }' /etc/centos-release)
-               distro_version=$(awk -F" " '{ print $4 }' /etc/centos-release)
+            pecho "Retrieving distro info from /etc/centos-release..."
+            distro_id="centos"
         elif [ -f /etc/os-release ]; then
-           echo "Retrieving distro info from /etc/os-release..."
-               distro=$(grep ^NAME /etc/os-release | awk -F"=" '{ print $2 }' | tr -d '"')
-               distro_version=$(grep VERSION_ID /etc/os-release | awk -F"=" '{ print $2 }' | tr -d '"')
-        elif which lsb_release 2>/dev/null; then
-           echo "Retrieving distro info from lsb_release command..."
-               distro=$(lsb_release -i | awk -F":" '{ print $2 }')
-               distro_version=$(lsb_release -r | awk -F":" '{ print $2 }')
+            pecho "Retrieving distro info from /etc/os-release..."
+            distro_id=$(grep "^ID=" /etc/os-release | awk -F= '{print $2}' | tr -d '"')
+            distro_id=$(canonicalize_distro_id $distro_id)
         else
-               echo "Unknown linux distro."
-               exit 1
+            eecho "[FATAL] Unknown linux distro, /etc/os-release not found!"
+            pecho "Download .deb/.rpm package based on your distro from 'https://github.com/Azure/AZNFS-mount/releases/latest'"
+            pecho "If the problem persists, contact Microsoft support."
         fi
         ;;
     *)
-        echo "Unsupported platform: ${__m}:${__s}."
+        eecho "[FATAL] Unsupported platform: ${__m}:${__s}."
         exit 1
         ;;
 esac
 
-distro_major_version=$(echo "${distro_version}" | cut -f1 -d".")
-distro_minor_version=$(echo "${distro_version}" | cut -f2 -d".")
+ensure_pkg "wget"
 
-case "${distro}" in
-    *edHat* | *ed\ Hat*)
-        use_dnf_or_yum
-        sudo -E ${yum} -y install curl
-        ;;
-
-    *entOS*)
-        use_dnf_or_yum
-        sudo -E ${yum} -y install curl
-        ;;
-
-    *racle*)
-        use_dnf_or_yum
-        sudo -E ${yum} -y install curl
-        ;;
-
-    *SLES*)
-        zypper=1
-        sudo -E zypper install -y curl
-        ;;
-
-    *mazon\ Linux*)
-        use_dnf_or_yum
-        sudo -E ${yum} -y install curl
-        ;;
-
-    *ebian*)
-        apt=1
-        debian=1
-        sudo -E apt update
-        sudo -E apt install -y curl
-        sudo -E apt install -y software-properties-common
-        ;;        
-
-    *buntu*)
-        apt=1
-        verify_apt_not_busy
-        sudo -E apt update
-        sudo -E apt install -y curl
-        ;;        
-
-    *ariner*)
-        use_dnf_or_yum
-        sudo -E ${yum} -y install curl
-        ;;
-
-    *ocky*)
-        use_dnf_or_yum
-        sudo -E ${yum} -y install curl
-        ;;
-
-    *)
-        echo "Unsupported Linux distribution: ${distro}:${distro_major_version}.${distro_minor_version}."
-        exit 1
-        ;;
-esac
-
-#
-# Install the aznfs mount helper.
-#
-if [ -n "${altdownloadfile}" ]; then
-    verify_downloadfile
-    echo "Downloading from alternate location: ${altdownloadfile}..."
-
-    if [ $apt -eq 1 ]; then
-        if [ -n "${proxy}" ]; then
-        curl --proxy ${proxy} "${altdownloadfile}" -o /tmp/azcmagent.deb            
-        else
-        curl "${altdownloadfile}" -o /tmp/azcmagent.deb
-        fi
-    else
-        if [ -n "${proxy}" ]; then
-        curl --proxy ${proxy} "${altdownloadfile}" -o /tmp/azcmagent.rpm
-        else
-        curl "${altdownloadfile}" -o /tmp/azcmagent.rpm
-        fi
-    fi
-    if [ $? -ne 0 ]; then
-        exit_failure 142 "$0: invalid --altdownload link: ${altdownloadfile}"
-    fi
-fi
-
-install_cmd=
 if [ $apt -eq 1 ]; then
     install_cmd="apt"
-    if [ -n "${altdownloadfile}" ]; then
-        sudo -E apt install -y /tmp/azcmagent.deb
-    elif [ $debian -eq 1 ]; then
-        if [ -n "${proxy}" ]; then
-            curl --proxy ${proxy} https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-        else
-            curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+    current_version=$(apt-cache show aznfs 2>/dev/null | grep "Version: " | awk '{print $2}')
+    if [ -n "$current_version" ]; then
+        read -n 1 -p "AZNFS version $current_version is already installed. Do you want to install version $RELEASE_NUMBER? [y/n] " result < /dev/tty
+        echo
+        if [ "$result" != "y" -a "$result" != "Y" ]; then
+            eecho "Installation aborted!"
+            exit 1
         fi
-        curlret=$?
-        if [ $curlret -ne 0 ]; then
-            exit_failure 146 "$0: curl download error: $curlret"
-        fi
-        sudo -E apt-add-repository https://packages.microsoft.com/debian/${deb_distro}/prod
-        sudo -E apt-get update
-    sudo -E apt install -y azcmagent
-    else
-        if [ -n "${proxy}" ]; then
-            curl --proxy ${proxy} https://packages.microsoft.com/config/ubuntu/${deb_distro}/packages-microsoft-prod.deb -o /tmp/packages-microsoft-prod.deb
-        else
-            curl https://packages.microsoft.com/config/ubuntu/${deb_distro}/packages-microsoft-prod.deb -o /tmp/packages-microsoft-prod.deb
-        fi
-    curlret=$?
-        if [ $curlret -ne 0 ]; then
-            exit_failure 146 "$0: curl download error: $curlret"
-        fi
-        sudo -E dpkg -i /tmp/packages-microsoft-prod.deb
-        sudo -E apt-get update
-    sudo -E apt install -y azcmagent
     fi
+    wget https://github.com/Azure/AZNFS-mount/releases/download/${RELEASE_NUMBER}/aznfs_${RELEASE_NUMBER}_amd64.deb -P /tmp
+    apt install -y /tmp/aznfs_${RELEASE_NUMBER}_amd64.deb
+    install_error=$?
+    rm -f /tmp/aznfs_${RELEASE_NUMBER}_amd64.deb
 elif [ $zypper -eq 1 ]; then
     install_cmd="zypper"
-    if [ -n "${altdownloadfile}" ]; then
-    sudo -E zypper install -y /tmp/azcmagent.rpm
-    else
-        if [ -n "${proxy}" ]; then
-        curl --proxy ${proxy} https://packages.microsoft.com/keys/microsoft.asc > /tmp/microsoft.asc
-        else
-        curl https://packages.microsoft.com/keys/microsoft.asc > /tmp/microsoft.asc
-        fi
-    curlret=$?
-        if [ $curlret -ne 0 ]; then
-            exit_failure 146 "$0: curl download error: $curlret"
-        fi
-    sudo rpm --import /tmp/microsoft.asc
-    sudo -E rpm -Uvh --force https://packages.microsoft.com/config/${rpm_distro}/packages-microsoft-prod.rpm
-    sudo -E zypper install -y azcmagent
-    fi
+    eecho "[FATAL] This installer currently does not support $distro_id!"
+    exit 1
+    # Does not support SUSE for now.
 else
     install_cmd="yum"
-    if [ -n "${altdownloadfile}" ]; then
-        if [ $localinstall -eq 0 ]; then
-            sudo -E ${yum} -y install /tmp/azcmagent.rpm
-        else
-            sudo -E ${yum} -y localinstall /tmp/azcmagent.rpm
-        fi
-    else
-        if [ -n "${rpm_distro}" ]; then
-            sudo -E rpm -Uvh https://packages.microsoft.com/config/${rpm_distro}/packages-microsoft-prod.rpm
-        fi
-    sudo -E ${yum} -y install azcmagent
-    fi
+    eecho "[FATAL] This installer currently does not support $distro_id!"
+    exit 1
+    # Does not support CentOS for now.
 fi
 
-install_exit_code=$?
-if [ $install_exit_code -ne 0 ]; then
-    exit_failure 143 "$0: error installing azcmagent (exit code: $install_exit_code). See '$install_cmd' command logs for more information."
+if [ $install_error -ne 0 ]; then
+    eecho "[FATAL] Error installing aznfs (Error: $install_error). See '$install_cmd' command logs for more information."
+    exit 1
 fi
 
-# Set proxy, if any
-
-if [ -n "${proxy}" ]; then
-    echo "Configuring proxy..."
-    sudo azcmagent config set proxy.url ${proxy}
-fi
-
-exit_success "Latest version of azcmagent is installed."
+secho "Version $RELEASE_NUMBER of aznfs mount helper is successfully installed."
