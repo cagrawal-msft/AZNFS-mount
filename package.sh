@@ -74,7 +74,7 @@ cp -avf ${SOURCE_DIR}/src/aznfswatchdog.service ${STG_DIR}/rpm/tmp${rpm_buildroo
 tar -cvzf ${pkg_dir}.tar.gz -C ${STG_DIR}/rpm/tmp root
 
 # Insert current release number.
-sed -i -e "s/Version: x.y.z/Version: ${RELEASE_NUMBER}/g" ${SOURCE_DIR}/RPM/aznfs.spec
+sed -i -e "s/Version: x.y.z/Version: ${RELEASE_NUMBER}/g" ${SOURCE_DIR}/packaging/${pkg_name}/RPM/aznfs.spec
 
 # Create the rpm package.
-rpmbuild --define "_topdir ${STG_DIR}/rpm${rpmbuild_dir}" -v -bb ${SOURCE_DIR}/RPM/aznfs.spec
+rpmbuild --define "_topdir ${STG_DIR}/rpm${rpmbuild_dir}" -v -bb ${SOURCE_DIR}/packaging/${pkg_name}/RPM/aznfs.spec
