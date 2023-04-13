@@ -14,8 +14,8 @@ Mount helper program for correctly handling endpoint IP address changes for Azur
 ls ${STG_DIR}/rpm/root/rpmbuild/*
 rpmbuild --version
 mkdir -p ${STG_DIR}/rpm/root/rpmbuild/SOURCES
-cp -avf ${STG_DIR}/aznfs_${RELEASE_NUMBER}_amd64.tar.gz ${STG_DIR}/rpm/root/rpmbuild/SOURCES/
-tar -xzvf ${STG_DIR}/rpm/root/rpmbuild/SOURCES/aznfs_${RELEASE_NUMBER}_amd64.tar.gz -C ${STG_DIR}/rpm/
+cp -avf ${STG_DIR}/aznfs-${RELEASE_NUMBER}-1.x86_64.tar.gz ${STG_DIR}/rpm/root/rpmbuild/SOURCES/
+tar -xzvf ${STG_DIR}/rpm/root/rpmbuild/SOURCES/aznfs-${RELEASE_NUMBER}-1.x86_64.tar.gz -C ${STG_DIR}/rpm/
 
 %files
 %{_sbindir}/aznfswatchdog
