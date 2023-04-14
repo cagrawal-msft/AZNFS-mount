@@ -4,7 +4,6 @@ Release: 1
 Summary: Mount helper program for correctly handling endpoint IP address changes for Azure Blob NFS mounts
 License: MIT
 URL: https://github.com/Azure/AZNFS-mount/blob/main/README.md
-Source0: https://github.com/Azure/BlobNFS-mount/archive/refs/tags/%{Version}.tar.gz
 Requires: conntrack, iptables, bind-utils, iproute, util-linux, nfs-utils, netcat
 
 %description
