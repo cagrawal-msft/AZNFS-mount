@@ -1,23 +1,61 @@
+# --------------------------------------------------------------------------------------------
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License. See License.txt in the project root for license information.
+# --------------------------------------------------------------------------------------------
+
 #
 # Release workflow for Mount Helper Script.
 #
 
-name: Release to github for Mount Helper
+name: Create Official Release
 
 on:
   workflow_dispatch:
     inputs:
+      branch:
+        description: 'Branch Name'
+        required: true
       versionName:
         description: 'Version Name'
         required: true
 
+permissions:
+  contents: write
+
 jobs:
-  package_mount_helper:
-    name: Package and Release Mount Helper
+  verify_branch_name:
+    name: Verify Branch Name 
     runs-on: ubuntu-latest
     steps:
+    - if: "!startsWith(github.event.inputs.branch, 'release/aznfs')"
+      run: |
+        echo "This workflow can be run only for release/aznfs* branch!"
+        echo "Branch Name: ${{ github.event.inputs.branch }}"
+        echo "Version: ${{ github.event.inputs.versionName }}"
+        echo "${{ github.ref }}"
+        exit 1
+  package_mount_helper:
+    name: Package and Release Mount Helper ${{ github.event.inputs.versionName }}
+    runs-on: ubuntu-latest
+    needs: verify_branch_name
+    steps:
+    - name: Check Version Number
+      shell: bash
+      run: |
+        versionName=${{ github.event.inputs.versionName }}
+        if echo $versionName | grep -q "^0\."; then 
+            echo "Official Release version cannot be of the form 0.y.z" 
+            false
+        fi
+    - name: Install arm64 Cross-Compile Toolchain
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt install -y gcc-aarch64-linux-gnu
     - name: Checkout repository
       uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.inputs.branch }}
     - name: Run Package.sh
       shell: bash
       run: |
@@ -32,7 +70,11 @@ jobs:
         name: Release ${{ github.event.inputs.versionName }}
         tag_name: ${{ github.event.inputs.versionName }}
         files: |
-          ${{ github.workspace}}/aznfs_${{ github.event.inputs.versionName }}_amd64.deb
-          ${{ github.workspace}}/scripts/installerScript.sh
+          ${{ github.workspace }}/deb/aznfs-${{ github.event.inputs.versionName }}-1_amd64.deb
+          ${{ github.workspace }}/rpm/root/rpmbuild/RPMS/x86_64/aznfs-${{ github.event.inputs.versionName }}-1.x86_64.rpm
+          ${{ github.workspace }}/suse/root/rpmbuild/RPMS/x86_64/aznfs_sles-${{ github.event.inputs.versionName }}-1.x86_64.rpm
+          ${{ github.workspace }}/scripts/aznfs_install.sh
+          ${{ github.workspace }}/tarball/aznfs-${{ github.event.inputs.versionName }}-1.x86_64.tar.gz
+          ${{ github.workspace }}/tarball/aznfs-${{ github.event.inputs.versionName }}-1.arm64.tar.gz
         body: |
           New Release ${{ github.event.inputs.versionName }}
