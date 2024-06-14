@@ -7,7 +7,7 @@
 # Release workflow for Mount Helper Script.
 #
 
-name: Release to github for Mount Helper
+name: Create Official Release
 
 on:
   workflow_dispatch:
@@ -15,23 +15,39 @@ on:
       versionName:
         description: 'Version Name'
         required: true
-      branch: 
-        description: 'Branch to run workflow on'
+      branch:
+        description: 'Branch Name'
         required: true
 
+permissions:
+  contents: write
+
 jobs:
-  check_branch_name:
-    name: Check branch name
+  verify_branch_name:
+    name: Verify Branch Name 
     runs-on: ubuntu-latest
     steps:
-    - if: "!startsWith(github.event.inputs.branch, 'release/aznfs')"
+    - if !startsWith(${{ github.event.inputs.branch }}, 'release/aznfs')
       run: |
-        echo "This workflow only runs on release brnaches"
+        echo "This workflow can be run only for release/aznfs* branch!"
         exit 1
   package_mount_helper:
-    name: Package and Release Mount Helper
+    name: Package and Release Mount Helper ${{ github.event.inputs.versionName }}
     runs-on: ubuntu-latest
     steps:
+    - name: Check Version Number
+      shell: bash
+      run: |
+        versionName=${{ github.event.inputs.versionName }}
+        if echo $versionName | grep -q "^0\."; then 
+            echo "Official Release version cannot be of the form 0.y.z" 
+            false
+        fi
+    - name: Install arm64 Cross-Compile Toolchain
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt install -y gcc-aarch64-linux-gnu
     - name: Checkout repository
       uses: actions/checkout@v3
     - name: Run Package.sh
@@ -46,11 +62,13 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         name: Release ${{ github.event.inputs.versionName }}
-        prerelease: true
         tag_name: ${{ github.event.inputs.versionName }}
         files: |
-          ${{ github.workspace}}/deb/aznfs-${{ github.event.inputs.versionName }}-1_amd64.deb
-          ${{ github.workspace}}/rpm/root/rpmbuild/RPMS/x86_64/aznfs-${{ github.event.inputs.versionName }}-1.x86_64.rpm
-          ${{ github.workspace}}/scripts/aznfs_install.sh
+          ${{ github.workspace }}/deb/aznfs-${{ github.event.inputs.versionName }}-1_amd64.deb
+          ${{ github.workspace }}/rpm/root/rpmbuild/RPMS/x86_64/aznfs-${{ github.event.inputs.versionName }}-1.x86_64.rpm
+          ${{ github.workspace }}/suse/root/rpmbuild/RPMS/x86_64/aznfs_sles-${{ github.event.inputs.versionName }}-1.x86_64.rpm
+          ${{ github.workspace }}/scripts/aznfs_install.sh
+          ${{ github.workspace }}/tarball/aznfs-${{ github.event.inputs.versionName }}-1.x86_64.tar.gz
+          ${{ github.workspace }}/tarball/aznfs-${{ github.event.inputs.versionName }}-1.arm64.tar.gz
         body: |
           New Release ${{ github.event.inputs.versionName }}
