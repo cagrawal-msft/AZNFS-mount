@@ -15,8 +15,19 @@ on:
       versionName:
         description: 'Version Name'
         required: true
+      branch: 
+        description: 'Branch to run workflow on'
+        required: true
 
 jobs:
+  check_branch_name:
+    name: Check branch name
+    runs-on: ubuntu-latest
+    steps:
+    - if: "!startsWith(github.event.inputs.branch, 'release/aznfs')"
+      run: |
+        echo "This workflow only runs on release brnaches"
+        exit 1
   package_mount_helper:
     name: Package and Release Mount Helper
     runs-on: ubuntu-latest
