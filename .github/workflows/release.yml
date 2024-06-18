@@ -27,6 +27,8 @@ jobs:
     - name: Extract Branch Name
       run: | 
         echo "branch_name=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
+    - name: Print Branch Name
+      run: |
         echo "Release workflow will run for branch ${{ env.branch_name }}"
     - name: Verify Correct Branch Name
       if: "!startsWith(env.branch_name, 'release/aznfs')"
