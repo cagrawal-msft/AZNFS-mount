@@ -17,6 +17,8 @@ GREEN="\e[2;32m"
 YELLOW="\e[2;33m"
 NORMAL="\e[0m"
 
+# THis is running from release branch 2.0
+
 #
 # Core logging function.
 #
